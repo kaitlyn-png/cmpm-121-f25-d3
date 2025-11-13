@@ -13,17 +13,20 @@ const statusPanelDiv = document.createElement("div");
 statusPanelDiv.id = "statusPanel";
 document.body.append(statusPanelDiv);
 
-// HTML ELEMENTS SET UP
+// CONSTANTS
 
-document.body.innerHTML = `
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <div id="map"></div>
-`;
+const TILE_DEGREES = 1e-4;
+const CLASSROOM_LATLNG = L.latLng(36.997936938057016, -122.05703507501151);
 
 // MAP CREATION
 
-const map = L.map("map").setView([36.998153710083656, -122.05660505944903], 13);
+const map = L.map(mapDiv, {
+  center: CLASSROOM_LATLNG,
+  zoom: 19,
+  minZoom: 19,
+  maxZoom: 19,
+  renderer: L.canvas(),
+});
 
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
@@ -33,5 +36,44 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 // PLAYER MARKER
 
-const marker = L.marker([36.998153710083656, -122.05660505944903]).addTo(map);
-marker.bindTooltip("That's you!");
+const marker = L.marker([36.997936938057016, -122.05703507501151]).addTo(map);
+marker.bindTooltip("Me!");
+
+// GRID AND CELLS
+
+function cellToLatLngBounds(i: number, j: number) {
+  const origin = CLASSROOM_LATLNG;
+  return L.latLngBounds([
+    [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
+    [origin.lat + (i + 1) * TILE_DEGREES, origin.lng + (j + 1) * TILE_DEGREES],
+  ]);
+}
+
+function drawGrid() {
+  const gridLayer = (window as any)._gridLayer || L.layerGroup().addTo(map);
+  (window as any)._gridLayer = gridLayer;
+  gridLayer.clearLayers();
+
+  const bounds = map.getBounds();
+  const origin = CLASSROOM_LATLNG;
+
+  const minI = Math.floor((bounds.getSouth() - origin.lat) / TILE_DEGREES);
+  const maxI = Math.floor((bounds.getNorth() - origin.lat) / TILE_DEGREES);
+  const minJ = Math.floor((bounds.getWest() - origin.lng) / TILE_DEGREES);
+  const maxJ = Math.floor((bounds.getEast() - origin.lng) / TILE_DEGREES);
+
+  for (let i = minI; i <= maxI; i++) {
+    for (let j = minJ; j <= maxJ; j++) {
+      const cellBounds = cellToLatLngBounds(i, j);
+      L.rectangle(cellBounds, {
+        color: "#ccc",
+        weight: 0.5,
+        fillOpacity: 0.05,
+      }).addTo(gridLayer);
+    }
+  }
+}
+
+drawGrid();
+
+map.on("moveend", drawGrid);
