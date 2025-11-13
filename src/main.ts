@@ -50,8 +50,9 @@ function cellToLatLngBounds(i: number, j: number) {
 }
 
 function drawGrid() {
-  const gridLayer = (window as any)._gridLayer || L.layerGroup().addTo(map);
-  (window as any)._gridLayer = gridLayer;
+  const w = window as unknown as { _gridLayer?: L.LayerGroup };
+  const gridLayer = w._gridLayer || L.layerGroup().addTo(map);
+  w._gridLayer = gridLayer;
   gridLayer.clearLayers();
 
   const bounds = map.getBounds();
