@@ -1,6 +1,7 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./_leafletWorkaround.ts";
+import luck from "./_luck.ts";
 import "./style.css";
 
 // UI SETUP
@@ -36,10 +37,15 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 // PLAYER MARKER
 
-const marker = L.marker([36.997936938057016, -122.05703507501151]).addTo(map);
-marker.bindTooltip("Me!");
+L.marker(CLASSROOM_LATLNG).addTo(map).bindTooltip("Me!");
 
-// GRID AND CELLS
+// GRID + TOKEN LAYER
+
+const w = window as unknown as { _gridLayer?: L.LayerGroup };
+const gridLayer = w._gridLayer || L.layerGroup().addTo(map);
+w._gridLayer = gridLayer;
+
+// CELLS
 
 function cellToLatLngBounds(i: number, j: number) {
   const origin = CLASSROOM_LATLNG;
@@ -49,10 +55,46 @@ function cellToLatLngBounds(i: number, j: number) {
   ]);
 }
 
+// TOKENS
+
+type TokenType = "coin" | "gem" | "mushroom";
+
+function getTokenType(i: number, j: number): TokenType | null {
+  const l = luck(`cell-${i}-${j}`);
+
+  if (l < 0.1) return "gem";
+  if (l < 0.3) return "coin";
+  if (l < 0.4) return "mushroom";
+  return null;
+}
+
+function renderToken(i: number, j: number) {
+  const type = getTokenType(i, j);
+  if (!type) return;
+
+  const origin = CLASSROOM_LATLNG;
+  const lat = origin.lat + (i + 0.5) * TILE_DEGREES;
+  const lng = origin.lng + (j + 0.5) * TILE_DEGREES;
+
+  const emojiMap: Record<TokenType, string> = {
+    coin: "🪙",
+    gem: "💎",
+    mushroom: "🍄",
+  };
+
+  const icon = L.divIcon({
+    html: emojiMap[type],
+    className: "token-icon",
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
+
+  L.marker([lat, lng], { icon }).addTo(gridLayer);
+}
+
+// DRAW GRID
+
 function drawGrid() {
-  const w = window as unknown as { _gridLayer?: L.LayerGroup };
-  const gridLayer = w._gridLayer || L.layerGroup().addTo(map);
-  w._gridLayer = gridLayer;
   gridLayer.clearLayers();
 
   const bounds = map.getBounds();
@@ -71,6 +113,8 @@ function drawGrid() {
         weight: 0.5,
         fillOpacity: 0.05,
       }).addTo(gridLayer);
+
+      renderToken(i, j);
     }
   }
 }
