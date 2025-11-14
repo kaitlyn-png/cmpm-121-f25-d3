@@ -26,15 +26,14 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] draw a rectangle representing one cell on the map
 - [x] use loops to draw a whole grid of cells on the map
 - [x] implement deterministic token spawning using Luck function (based on cell coordinates)
-- [ ] make cells clickable only if within interaction radius
-- [ ] allow player to pick up a token from a neighboring cell
-- [ ] display current held token value on screen
-- [ ] enable crafting: place held token on adjacent cell with same value → merge into value×2
-- [ ] remove both source tokens, spawn new one in same cell
-- [ ] visually update cell content after crafting
-- [ ] ensure grid appearance persists across reloads
-- [ ] clamp interaction to local neighborhood; disable clicks outside
-- [ ] test workflow: collect → craft → repeat until target value is reached
+- [x] make cells clickable only if within interaction radius (add a highlight for what you can click)
+- [x] allow player to pick up a token from a neighboring cell
+- [x] display current held token value on screen + current score
+- [x] enable crafting: place held token on adjacent cell with same value → merge into value×2
+- [x] remove both source tokens, spawn new one in same cell
+- [x] visually update cell content after crafting
+- [x] ensure grid appearance persists across reloads
+- [x] test workflow: collect → craft → repeat until target value is reached
 
 ### D3.b: Globe-spanning Gameplay
 

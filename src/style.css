@@ -4,6 +4,30 @@
 
 #statusPanel {
   padding: 1rem;
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+}
+
+#statusPanel p {
+  display: inline;
+  margin: 0 10px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+#held {
+  color: #d9534f;
+}
+#score {
+  color: #5cb85c;
+}
+
+#title {
+  font-family: "Arial Black", sans-serif;
+  font-size: 32px;
+  text-align: center;
+  margin: 20px 0;
+  color: #2b8f6f;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 #map {
@@ -16,4 +40,62 @@
   text-align: center;
   color: #333;
   white-space: nowrap;
+}
+
+.player-icon {
+  font-size: 24px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.cell-label, .cell-label * {
+  pointer-events: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell-token {
+  font-size: 26px;
+  display: inline-block;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.leaflet-marker-icon.token-icon,
+.leaflet-marker-icon.crafted-token {
+  pointer-events: none !important;
+}
+
+.leaflet-marker-pane .leaflet-marker-icon.token-icon,
+.leaflet-marker-pane .leaflet-marker-icon.crafted-token {
+  pointer-events: none !important;
+}
+
+.leaflet-clickable {
+  cursor: pointer;
+}
+
+.interaction-circle {
+  stroke: #2b8f6f;
+  fill: #2b8f6f;
+  opacity: 0.7;
+  animation: pulse 2.2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.08;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.18;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0.08;
+    transform: scale(1);
+  }
 }
