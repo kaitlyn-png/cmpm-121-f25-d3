@@ -37,15 +37,14 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 
 ### D3.b: Globe-spanning Gameplay
 
-- [] enable wasd player movement
-- [] allow for the cells to be visible as the player moves out of the map
-- [] the map can be scrolled without the player moving
-- [] player interaction is limited to nearby cells
-- [] tokens respawn when off screen
-- [] crafting enables progression toward a higher win threshold
-- [] movement can be controlled via UI buttons or natural map panning
-
-...
+- [x] enable wasd player movement
+- [x] allow for the cells to be visible as the player moves out of the map
+- [x] the map can be scrolled without the player moving
+- [x] player interaction is limited to nearby cells
+- [x] tokens respawn when off screen
+- [x] crafting enables progression toward a higher win threshold --> 2048
+- [x] movement can be controlled via UI buttons or natural map panning
+- [x] players can place tokens on empty spaces
 
 ### D3.c: Object persistence
 

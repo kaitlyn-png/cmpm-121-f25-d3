@@ -46,14 +46,6 @@ const WIN_CONDITION_VALUE = 2048;
 
 let SCORE = 0;
 
-// let userX = startingPos.x;
-// let userY = startingPos.y;
-
-interface CellCoord {
-  i: number;
-  j: number;
-}
-
 // MAP CREATION
 
 const map = L.map(mapDiv, {
@@ -85,7 +77,20 @@ w._gridLayer = gridLayer;
 const cellTokens = new Map<string, number>();
 const pickedUpBase = new Set<string>();
 
-const HEART_PALETTE = ["❤️", "🧡", "💛", "💚", "💙", "💜", "💖"];
+const HEART_PALETTE = [
+  "❤️", //1
+  "🧡", //2
+  "💛", //4
+  "💚", //8
+  "💙", //16
+  "💜", //32
+  "💔", //64
+  "💗", //128
+  "💕", //256
+  "💞", //512
+  "💘", //1024
+  "💖", //2048
+];
 
 function heartForValue(v: number): string {
   if (!Number.isFinite(v) || v <= 0) return HEART_PALETTE[0];
@@ -239,6 +244,19 @@ function pickUpToken(i: number, j: number): boolean {
   return true;
 }
 
+function placeToken(i: number, j: number): boolean {
+  if (player.heldToken === null) return false;
+  const cellKey = `${i},${j}`;
+  const cellValue = getTokenValueInCell(i, j);
+  if (cellValue !== null) return false;
+  cellTokens.set(cellKey, player.heldToken);
+  pickedUpBase.delete(cellKey);
+  player.heldToken = null;
+  player.updateUI();
+  checkScore();
+  return true;
+}
+
 function craftToken(i: number, j: number): boolean {
   if (player.heldToken === null) return false;
   const cellKey = `${i},${j}`;
@@ -299,7 +317,8 @@ function drawGrid() {
       const canPickUp = player.heldToken === null && cellValue !== null;
       const canCraft = player.heldToken !== null && cellValue !== null &&
         cellValue === player.heldToken;
-      const actionable = withinRadius && (canPickUp || canCraft);
+      const canPlace = player.heldToken !== null && cellValue === null;
+      const actionable = withinRadius && (canPickUp || canCraft || canPlace);
 
       const tokenDisplay = getTokenDisplay(i, j);
 
@@ -333,7 +352,9 @@ function drawGrid() {
         if (!isWithinInteractionRadius(i, j)) return;
         if (player.heldToken === null) {
           pickUpToken(i, j);
-        } else {
+        } else if (cellValue === null) {
+          placeToken(i, j);
+        } else if (cellValue === player.heldToken) {
           craftToken(i, j);
         }
         drawGrid();
@@ -341,7 +362,9 @@ function drawGrid() {
 
       if (actionable) {
         rectangle.bindTooltip(
-          player.heldToken === null ? "Pick up heart" : "Place to combine",
+          player.heldToken === null
+            ? "Pick up heart"
+            : (cellValue === null ? "Place heart" : "Place to combine"),
           {
             permanent: false,
             direction: "top",
