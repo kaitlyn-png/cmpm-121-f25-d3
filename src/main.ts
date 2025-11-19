@@ -9,8 +9,7 @@ import "./style.css";
 document.body.innerHTML = `
   <p id = "title"> World of Hearts </p>
   <div id="map"></div>
-  <div id="controlPanel"></div>
-  <div id="statusPanel"></div>
+  <div id="uiPanel"></div>
 `;
 
 // UI SETUP
@@ -19,15 +18,23 @@ const mapDiv = document.getElementById("map") as HTMLDivElement;
 mapDiv.id = "map";
 document.body.appendChild(mapDiv);
 
-const controlPanelDiv = document.getElementById(
-  "controlPanel",
-) as HTMLDivElement;
-controlPanelDiv.id = "controlPanel";
-document.body.append(controlPanelDiv);
+const uiPanelDiv = document.getElementById("uiPanel") as HTMLDivElement;
+uiPanelDiv.id = "uiPanel";
+uiPanelDiv.innerHTML = `
+  <div id="control-buttons">
+    <button id="upBtn">↑ W</button>
+    <div id="control-buttons-row">
+      <button id="leftBtn">← A</button>
+      <button id="downBtn">↓ S</button>
+      <button id="rightBtn">D →</button>
+    </div>
+  </div>
+  <div id="statusPanel"></div>
+`;
+document.body.append(uiPanelDiv);
 
 const statusPanelDiv = document.getElementById("statusPanel") as HTMLDivElement;
 statusPanelDiv.id = "statusPanel";
-document.body.append(statusPanelDiv);
 
 // CONSTANTS
 
@@ -41,6 +48,11 @@ let SCORE = 0;
 
 // let userX = startingPos.x;
 // let userY = startingPos.y;
+
+interface CellCoord {
+  i: number;
+  j: number;
+}
 
 // MAP CREATION
 
@@ -57,6 +69,10 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution:
     '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
+
+map.on("moveend", () => {
+  drawGrid();
+});
 
 // GRID + TOKEN LAYER
 
@@ -140,6 +156,31 @@ const interactionCircle: L.Circle = L.circle(player.latLng, {
   fillOpacity: 0.06,
   className: "interaction-circle",
 }).addTo(map);
+
+// MOVEMENT FUNCTION
+
+function movePlayer(direction: "up" | "down" | "left" | "right") {
+  const speed = player.speed;
+
+  switch (direction) {
+    case "up":
+      player.latLng = L.latLng(player.latLng.lat + speed, player.latLng.lng);
+      break;
+    case "down":
+      player.latLng = L.latLng(player.latLng.lat - speed, player.latLng.lng);
+      break;
+    case "left":
+      player.latLng = L.latLng(player.latLng.lat, player.latLng.lng - speed);
+      break;
+    case "right":
+      player.latLng = L.latLng(player.latLng.lat, player.latLng.lng + speed);
+      break;
+  }
+
+  player.marker.setLatLng(player.latLng);
+  map.setView(player.latLng);
+  drawGrid();
+}
 
 // HELPER FUNCTIONS
 
@@ -269,7 +310,7 @@ function drawGrid() {
 
       const rectangle = L.rectangle(cellBounds, {
         color: actionable ? "#2b8f6f" : "#ccc",
-        weight: actionable ? 1 : 0.5,
+        weight: actionable ? 1 : 0,
         fillOpacity: actionable ? 0.12 : 0.03,
         className: "leaflet-clickable",
         interactive: true,
@@ -316,3 +357,33 @@ function drawGrid() {
 drawGrid();
 player.updateUI();
 map.on("moveend", drawGrid);
+
+// INPUT HANDLING
+
+document.addEventListener("keydown", (event: KeyboardEvent) => {
+  if (event.key === "w" || event.key === "W") {
+    event.preventDefault();
+    movePlayer("up");
+  } else if (event.key === "s" || event.key === "S") {
+    event.preventDefault();
+    movePlayer("down");
+  } else if (event.key === "a" || event.key === "A") {
+    event.preventDefault();
+    movePlayer("left");
+  } else if (event.key === "d" || event.key === "D") {
+    event.preventDefault();
+    movePlayer("right");
+  }
+});
+
+// BUTTONS
+
+const upBtn = document.getElementById("upBtn") as HTMLButtonElement;
+const downBtn = document.getElementById("downBtn") as HTMLButtonElement;
+const leftBtn = document.getElementById("leftBtn") as HTMLButtonElement;
+const rightBtn = document.getElementById("rightBtn") as HTMLButtonElement;
+
+upBtn.addEventListener("click", () => movePlayer("up"));
+downBtn.addEventListener("click", () => movePlayer("down"));
+leftBtn.addEventListener("click", () => movePlayer("left"));
+rightBtn.addEventListener("click", () => movePlayer("right"));

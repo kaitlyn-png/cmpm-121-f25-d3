@@ -1,4 +1,7 @@
-#controlPanel {
+#uiPanel {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
   padding: 1rem;
 }
 
@@ -7,6 +10,7 @@
   font-size: 24px;
   font-weight: bold;
   text-align: center;
+  flex: 1;
 }
 
 #statusPanel p {
@@ -14,9 +18,11 @@
   margin: 0 10px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
+
 #held {
   color: #d9534f;
 }
+
 #score {
   color: #5cb85c;
 }
@@ -83,6 +89,43 @@
   fill: #2b8f6f;
   opacity: 0.7;
   animation: pulse 2.2s infinite ease-in-out;
+}
+
+#control-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  align-items: center;
+}
+
+#control-buttons-row {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+  align-items: center;
+}
+
+#upBtn,
+#downBtn,
+#leftBtn,
+#rightBtn {
+  padding: 10px 15px;
+  font-size: 16px;
+  cursor: pointer;
+  border: 2px solid #2b8f6f;
+  background-color: #f0f0f0;
+  color: #2b8f6f;
+  border-radius: 4px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+#upBtn:hover,
+#downBtn:hover,
+#leftBtn:hover,
+#rightBtn:hover {
+  background-color: #2b8f6f;
+  color: #f0f0f0;
 }
 
 @keyframes pulse {
