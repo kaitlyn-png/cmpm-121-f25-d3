@@ -48,6 +48,10 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 
 ### D3.c: Object persistence
 
-...
+- [] cells outside the map do not require memory if they haven't been modified by the player
+- [] cells' modified state are preserved when they scroll off screen
+- [] cells are restored when they are returned to view
 
 ### D3.d: Gameplay Across Real-world Space and Time
+
+- [] game state persists across page loads

@@ -4,7 +4,7 @@ import "./_leafletWorkaround.ts";
 import luck from "./_luck.ts";
 import "./style.css";
 
-// HTMl
+// HTML
 
 document.body.innerHTML = `
   <p id = "title"> World of Hearts </p>
@@ -36,6 +36,13 @@ document.body.append(uiPanelDiv);
 const statusPanelDiv = document.getElementById("statusPanel") as HTMLDivElement;
 statusPanelDiv.id = "statusPanel";
 
+// CELLS
+
+interface CellState {
+  tokenValue: number | null;
+  lastModified: number;
+}
+
 // CONSTANTS
 
 const startingPos = { x: 36.997936938057016, y: -122.05703507501151 };
@@ -43,6 +50,7 @@ const ORIGIN_POS = L.latLng(36.997936938057016, -122.05703507501151);
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const WIN_CONDITION_VALUE = 2048;
+const worldData = new Map<string, CellState>();
 
 let SCORE = 0;
 
@@ -54,7 +62,7 @@ const map = L.map(mapDiv, {
   minZoom: GAMEPLAY_ZOOM_LEVEL,
   maxZoom: GAMEPLAY_ZOOM_LEVEL,
   renderer: L.canvas(),
-}).setView([startingPos.x, startingPos.y], 13);
+}).setView([startingPos.x, startingPos.y], GAMEPLAY_ZOOM_LEVEL);
 
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: GAMEPLAY_ZOOM_LEVEL,
@@ -73,9 +81,6 @@ const gridLayer = w._gridLayer || L.layerGroup().addTo(map);
 w._gridLayer = gridLayer;
 
 // TOKENS
-
-const cellTokens = new Map<string, number>();
-const pickedUpBase = new Set<string>();
 
 const HEART_PALETTE = [
   "❤️", //1
@@ -108,23 +113,34 @@ function getBaseTokenValue(i: number, j: number): number | null {
 }
 
 function getTokenValueInCell(i: number, j: number): number | null {
-  const cellKey = `${i},${j}`;
-  if (cellTokens.has(cellKey)) return cellTokens.get(cellKey) || null;
-  if (pickedUpBase.has(cellKey)) return null;
+  const saved = loadCell(i, j);
+  if (saved) {
+    return saved.tokenValue;
+  }
   return getBaseTokenValue(i, j);
 }
 
 function getTokenDisplay(i: number, j: number): string | null {
-  const cellKey = `${i},${j}`;
-  if (cellTokens.has(cellKey)) {
-    const v = cellTokens.get(cellKey) as number;
-    return heartForValue(v);
+  const saved = loadCell(i, j);
+  if (saved) {
+    if (saved.tokenValue === null) return null;
+    return heartForValue(saved.tokenValue);
   }
-  if (!pickedUpBase.has(cellKey)) {
-    const v = getBaseTokenValue(i, j);
-    if (v !== null) return heartForValue(v);
-  }
+  const base = getBaseTokenValue(i, j);
+  if (base !== null) return heartForValue(base);
   return null;
+}
+
+function saveCell(i: number, j: number, value: number | null) {
+  const key = `${i},${j}`;
+  worldData.set(key, {
+    tokenValue: value,
+    lastModified: Date.now(),
+  });
+}
+
+function loadCell(i: number, j: number): CellState | null {
+  return worldData.get(`${i},${j}`) || null;
 }
 
 // PLAYER
@@ -183,7 +199,7 @@ function movePlayer(direction: "up" | "down" | "left" | "right") {
   }
 
   player.marker.setLatLng(player.latLng);
-  map.setView(player.latLng);
+  map.setView(player.latLng, GAMEPLAY_ZOOM_LEVEL);
   drawGrid();
 }
 
@@ -216,12 +232,10 @@ function cellToLatLngBounds(i: number, j: number) {
 
 function checkScore() {
   let maxScore = 0;
-  if (player.heldToken !== null) {
-    maxScore = player.heldToken;
-  }
-  for (const v of cellTokens.values()) {
-    if (v > maxScore) {
-      maxScore = v;
+  if (player.heldToken !== null) maxScore = player.heldToken;
+  for (const state of worldData.values()) {
+    if (state.tokenValue !== null && state.tokenValue > maxScore) {
+      maxScore = state.tokenValue;
     }
   }
   SCORE = maxScore;
@@ -231,26 +245,20 @@ function checkScore() {
 
 function pickUpToken(i: number, j: number): boolean {
   if (player.heldToken !== null) return false;
-  const cellKey = `${i},${j}`;
   const tokenValue = getTokenValueInCell(i, j);
   if (tokenValue === null) return false;
-  if (cellTokens.has(cellKey)) {
-    cellTokens.delete(cellKey);
-  } else {
-    pickedUpBase.add(cellKey);
-  }
+  saveCell(i, j, null);
   player.heldToken = tokenValue;
   player.updateUI();
+  checkScore();
   return true;
 }
 
 function placeToken(i: number, j: number): boolean {
   if (player.heldToken === null) return false;
-  const cellKey = `${i},${j}`;
   const cellValue = getTokenValueInCell(i, j);
   if (cellValue !== null) return false;
-  cellTokens.set(cellKey, player.heldToken);
-  pickedUpBase.delete(cellKey);
+  saveCell(i, j, player.heldToken);
   player.heldToken = null;
   player.updateUI();
   checkScore();
@@ -259,13 +267,11 @@ function placeToken(i: number, j: number): boolean {
 
 function craftToken(i: number, j: number): boolean {
   if (player.heldToken === null) return false;
-  const cellKey = `${i},${j}`;
   const cellValue = getTokenValueInCell(i, j);
   if (cellValue === null) return false;
   if (cellValue !== player.heldToken) return false;
   const newValue = player.heldToken * 2;
-  cellTokens.set(cellKey, newValue);
-  pickedUpBase.delete(cellKey);
+  saveCell(i, j, newValue);
   player.heldToken = null;
   player.updateUI();
   checkScore();
@@ -282,12 +288,12 @@ function checkWinCondition() {
     );
     return;
   }
-  for (const v of cellTokens.values()) {
-    if (v >= WIN_CONDITION_VALUE) {
+  for (const state of worldData.values()) {
+    if (state.tokenValue !== null && state.tokenValue >= WIN_CONDITION_VALUE) {
       setTimeout(
         () =>
           alert(
-            `You Win! 🎉 You reached a token value of ${player.heldToken}!`,
+            `You Win! 🎉 You reached a token value of ${state.tokenValue}!`,
           ),
         100,
       );
@@ -297,6 +303,7 @@ function checkWinCondition() {
 }
 
 // DRAW GRID
+
 function drawGrid() {
   gridLayer.clearLayers();
   const bounds = map.getBounds();
