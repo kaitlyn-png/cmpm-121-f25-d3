@@ -33,7 +33,6 @@ uiPanelDiv.innerHTML = `
   <div id="controlsRow">
     <button id="newGameBtn">New Game</button>
     <button id="movementToggle">Toggle Movement</button>
-    <span id="movementMode"></span>
   </div>
   <div id="statusPanel"></div>
 `;
