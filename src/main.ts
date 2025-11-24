@@ -2,6 +2,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./_leafletWorkaround.ts";
 import luck from "./_luck.ts";
+import MovementFacade from "./movement.ts";
 import "./style.css";
 
 // HTML
@@ -29,6 +30,11 @@ uiPanelDiv.innerHTML = `
       <button id="rightBtn">D →</button>
     </div>
   </div>
+  <div id="controlsRow">
+    <button id="newGameBtn">New Game</button>
+    <button id="movementToggle">Toggle Movement</button>
+    <span id="movementMode"></span>
+  </div>
   <div id="statusPanel"></div>
 `;
 document.body.append(uiPanelDiv);
@@ -43,10 +49,8 @@ interface CellState {
   lastModified: number;
 }
 
-// CONSTANTS
-
-const startingPos = { x: 36.997936938057016, y: -122.05703507501151 };
 const ORIGIN_POS = L.latLng(36.997936938057016, -122.05703507501151);
+//36.97099330537876, -122.03962311957285
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const WIN_CONDITION_VALUE = 2048;
@@ -54,15 +58,81 @@ const worldData = new Map<string, CellState>();
 
 let SCORE = 0;
 
+const STORAGE_KEY = "wof-state-v1";
+let currentMovementMode: "buttons" | "geolocation" = "buttons";
+
+function saveGameState() {
+  try {
+    const worldEntries: Array<[string, CellState]> = Array.from(
+      worldData.entries(),
+    );
+    const payload = {
+      worldEntries,
+      player: {
+        lat: player.latLng.lat,
+        lng: player.latLng.lng,
+        heldToken: player.heldToken,
+      },
+      score: SCORE,
+      movementMode: currentMovementMode,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn("Failed to save game state:", e);
+  }
+}
+
+function loadGameState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed?.worldEntries && Array.isArray(parsed.worldEntries)) {
+      worldData.clear();
+      for (const [k, v] of parsed.worldEntries) {
+        worldData.set(k, v as CellState);
+      }
+    }
+    if (parsed?.player) {
+      const p = parsed.player;
+      if (typeof p.lat === "number" && typeof p.lng === "number") {
+        player.latLng = L.latLng(p.lat, p.lng);
+        player.marker.setLatLng(player.latLng);
+        map.setView(player.latLng, GAMEPLAY_ZOOM_LEVEL);
+      }
+      player.heldToken = typeof p.heldToken === "number" ? p.heldToken : null;
+    }
+    SCORE = typeof parsed.score === "number" ? parsed.score : SCORE;
+    if (parsed?.movementMode === "geolocation") {
+      currentMovementMode = "geolocation";
+    }
+  } catch (e) {
+    console.warn("Failed to load game state:", e);
+  }
+}
+
+function resetGame() {
+  worldData.clear();
+  player.latLng = ORIGIN_POS;
+  player.marker.setLatLng(player.latLng);
+  player.heldToken = null;
+  SCORE = 0;
+  map.setView(player.latLng, GAMEPLAY_ZOOM_LEVEL);
+  saveGameState();
+  player.updateUI();
+  drawGrid();
+}
+
 // MAP CREATION
 
 const map = L.map(mapDiv, {
-  center: [startingPos.x, startingPos.y],
+  center: [ORIGIN_POS.lat, ORIGIN_POS.lng],
   zoom: GAMEPLAY_ZOOM_LEVEL,
   minZoom: GAMEPLAY_ZOOM_LEVEL,
   maxZoom: GAMEPLAY_ZOOM_LEVEL,
   renderer: L.canvas(),
-}).setView([startingPos.x, startingPos.y], GAMEPLAY_ZOOM_LEVEL);
+}).setView([ORIGIN_POS.lat, ORIGIN_POS.lng], GAMEPLAY_ZOOM_LEVEL);
 
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: GAMEPLAY_ZOOM_LEVEL,
@@ -74,13 +144,9 @@ map.on("moveend", () => {
   drawGrid();
 });
 
-// GRID + TOKEN LAYER
-
 const w = window as unknown as { _gridLayer?: L.LayerGroup };
 const gridLayer = w._gridLayer || L.layerGroup().addTo(map);
 w._gridLayer = gridLayer;
-
-// TOKENS
 
 const HEART_PALETTE = [
   "❤️", //1
@@ -137,6 +203,7 @@ function saveCell(i: number, j: number, value: number | null) {
     tokenValue: value,
     lastModified: Date.now(),
   });
+  saveGameState();
 }
 
 function loadCell(i: number, j: number): CellState | null {
@@ -178,39 +245,7 @@ const interactionCircle: L.Circle = L.circle(player.latLng, {
   className: "interaction-circle",
 }).addTo(map);
 
-// MOVEMENT FUNCTION
-
-function movePlayer(direction: "up" | "down" | "left" | "right") {
-  const speed = player.speed;
-
-  switch (direction) {
-    case "up":
-      player.latLng = L.latLng(player.latLng.lat + speed, player.latLng.lng);
-      break;
-    case "down":
-      player.latLng = L.latLng(player.latLng.lat - speed, player.latLng.lng);
-      break;
-    case "left":
-      player.latLng = L.latLng(player.latLng.lat, player.latLng.lng - speed);
-      break;
-    case "right":
-      player.latLng = L.latLng(player.latLng.lat, player.latLng.lng + speed);
-      break;
-  }
-
-  player.marker.setLatLng(player.latLng);
-  map.setView(player.latLng, GAMEPLAY_ZOOM_LEVEL);
-  drawGrid();
-}
-
 // HELPER FUNCTIONS
-
-function _getPlayerCell() {
-  const origin = ORIGIN_POS;
-  const i = Math.floor((player.latLng.lat - origin.lat) / TILE_DEGREES);
-  const j = Math.floor((player.latLng.lng - origin.lng) / TILE_DEGREES);
-  return { i, j };
-}
 
 function isWithinInteractionRadius(i: number, j: number): boolean {
   const origin = ORIGIN_POS;
@@ -240,8 +275,6 @@ function checkScore() {
   }
   SCORE = maxScore;
 }
-
-// PICKUP / CRAFT
 
 function pickUpToken(i: number, j: number): boolean {
   if (player.heldToken !== null) return false;
@@ -301,8 +334,6 @@ function checkWinCondition() {
     }
   }
 }
-
-// DRAW GRID
 
 function drawGrid() {
   gridLayer.clearLayers();
@@ -382,38 +413,90 @@ function drawGrid() {
   }
 }
 
-// INITIALIZE
+const urlParams = new URLSearchParams(globalThis.location?.search ?? "");
+if (urlParams.get("movement") === "geolocation") {
+  currentMovementMode = "geolocation";
+}
+
+loadGameState();
 
 drawGrid();
 player.updateUI();
-map.on("moveend", drawGrid);
 
-// INPUT HANDLING
+const upBtn = document.getElementById("upBtn") as HTMLButtonElement | null;
+const downBtn = document.getElementById("downBtn") as HTMLButtonElement | null;
+const leftBtn = document.getElementById("leftBtn") as HTMLButtonElement | null;
+const rightBtn = document.getElementById("rightBtn") as
+  | HTMLButtonElement
+  | null;
+const movementModeSpan = document.getElementById("movementMode") as
+  | HTMLSpanElement
+  | null;
+const newGameBtn = document.getElementById("newGameBtn") as
+  | HTMLButtonElement
+  | null;
+const movementToggle = document.getElementById("movementToggle") as
+  | HTMLButtonElement
+  | null;
 
-document.addEventListener("keydown", (event: KeyboardEvent) => {
-  if (event.key === "w" || event.key === "W") {
-    event.preventDefault();
-    movePlayer("up");
-  } else if (event.key === "s" || event.key === "S") {
-    event.preventDefault();
-    movePlayer("down");
-  } else if (event.key === "a" || event.key === "A") {
-    event.preventDefault();
-    movePlayer("left");
-  } else if (event.key === "d" || event.key === "D") {
-    event.preventDefault();
-    movePlayer("right");
+function updateMovementUI() {
+  if (movementModeSpan) movementModeSpan.textContent = currentMovementMode;
+  if (movementToggle) {
+    movementToggle.textContent = currentMovementMode === "buttons"
+      ? "Switch to Geolocation"
+      : "Switch to Buttons";
   }
-});
+}
 
-// BUTTONS
+const movement = new MovementFacade(
+  {
+    getPosition: () => player.latLng,
+    onPosition: (pos: L.LatLng) => {
+      console.log(
+        `onPosition called with: lat ${pos.lat}, lng ${pos.lng}`,
+      );
+      player.latLng = pos;
+      player.marker.setLatLng(player.latLng);
+      map.setView(player.latLng, GAMEPLAY_ZOOM_LEVEL);
+      console.log(
+        `Map centered on: lat ${player.latLng.lat}, lng ${player.latLng.lng}, Zoom: ${GAMEPLAY_ZOOM_LEVEL}`,
+      );
+      drawGrid();
+      player.updateUI();
+      saveGameState();
+    },
+    speed: player.speed,
+    upBtn,
+    downBtn,
+    leftBtn,
+    rightBtn,
+  },
+  currentMovementMode,
+);
 
-const upBtn = document.getElementById("upBtn") as HTMLButtonElement;
-const downBtn = document.getElementById("downBtn") as HTMLButtonElement;
-const leftBtn = document.getElementById("leftBtn") as HTMLButtonElement;
-const rightBtn = document.getElementById("rightBtn") as HTMLButtonElement;
+movement.start();
+updateMovementUI();
 
-upBtn.addEventListener("click", () => movePlayer("up"));
-downBtn.addEventListener("click", () => movePlayer("down"));
-leftBtn.addEventListener("click", () => movePlayer("left"));
-rightBtn.addEventListener("click", () => movePlayer("right"));
+if (movementToggle) {
+  movementToggle.addEventListener("click", () => {
+    currentMovementMode = currentMovementMode === "buttons"
+      ? "geolocation"
+      : "buttons";
+    movement.setMode(currentMovementMode);
+    updateMovementUI();
+    saveGameState();
+  });
+}
+
+if (newGameBtn) {
+  newGameBtn.addEventListener("click", () => {
+    if (confirm("Start a new game? This will erase current progress.")) {
+      resetGame();
+      updateMovementUI();
+    }
+  });
+}
+
+globalThis.addEventListener("beforeunload", () => saveGameState());
+
+map.on("moveend", drawGrid);
