@@ -1,6 +1,6 @@
 # CMPM 121 D3 Project: World of Bits
 
-A location-based incremental game built with TypeScript, Leaflet, and deterministic procedural generation. Players collect and craft numeric tokens on a grid overlaid on the real world—starting near the classroom—to build a single high-value token through strategic merging.
+A location-based incremental game built with TypeScript, Leaflet, and deterministic procedural generation. Players collect and craft numeric tokens on a grid overlaid on the real world, starting at our CMPM 121 classroom, to build a single high-value token through strategic merging.
 
 > "It's like _2048_ meets _Pokemon Go_"
 
@@ -27,11 +27,13 @@ All game state is **deterministic**, the same tokens appear in the same places e
 
 - A fixed grid of cells (size ≈ `0.0001°`) is centered on the classroom.
 - Cells extend far enough that the map feels infinite (e.g., 100×100 grid), but only nearby cells are interactive.
-- The player’s location is fixed at the classroom.
+- The player’s location is fixed at the classroom at start.
+- Select the "Geolocation" button to fix onto your real-life location
+- Select the "Buttons" button to control the player with your WASD keys
 
 ### Tokens
 
-- Each cell contains a token with value `0`, `1`, `2`, or `4` (0 = empty).
+- Each cell contains a token (a heart) with value `0`, `1`, `2`, or `4` (0 = empty).
 - Values are generated using `luck([i, j, 'token'])` → consistent across reloads.
 - Token values are **always visible** on the map (no click required).
 
